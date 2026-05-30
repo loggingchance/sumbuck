@@ -68,7 +68,7 @@ export function makeSegments(log: PracticeLog, cutPositionsFt: number[]): LogSeg
   return positions.slice(0, -1).map((start, index) => {
     const end = positions[index + 1];
     const rawLength = end - start;
-    const nominalLength = Math.max(0, Math.floor(rawLength - TRIM_FT));
+    const nominalLength = calculateNominalLengthFt(rawLength);
     const defects = allDefects(log).filter((defect) => overlaps(defect.startFt, defect.endFt, start, end));
     const smallEndDiameterIn = interpolateDiameter(log, end);
     const heartwoodDiameterIn = interpolateHeartwoodDiameter(log, end);
@@ -88,6 +88,10 @@ export function makeSegments(log: PracticeLog, cutPositionsFt: number[]): LogSeg
       defects
     };
   });
+}
+
+export function calculateNominalLengthFt(rawLengthFt: number, trimRequirementFt = TRIM_FT): number {
+  return Math.max(0, Math.floor(rawLengthFt - trimRequirementFt + 0.00001));
 }
 
 export function scoreSolution(
@@ -146,7 +150,7 @@ function scoreSegmentSet(
 export function withSawlogTrimAllowance(segment: LogSegment): LogSegment | null {
   const rawLength = segment.endFt - segment.startFt;
   const adjustedTrimRequirement = TRIM_FT - SAWLOG_TRIM_ALLOWANCE_FT;
-  const nominalLengthFt = Math.max(0, Math.floor(rawLength - adjustedTrimRequirement + 0.00001));
+  const nominalLengthFt = calculateNominalLengthFt(rawLength, adjustedTrimRequirement);
   const trimFt = round(rawLength - nominalLengthFt, 2);
   if (nominalLengthFt <= segment.nominalLengthFt) return null;
   if (trimFt < adjustedTrimRequirement - 0.00001 || trimFt >= TRIM_FT) return null;

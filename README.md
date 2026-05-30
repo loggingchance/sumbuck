@@ -1,20 +1,24 @@
 # SumBuck
 
-First-pass prototype for a browser-based hardwood log bucking practice app.
+SumBuck is a browser-based hardwood log bucking and grading training app.
 
-## What is included
+It lets users practice bucking tree-length stems, grade pre-cut logs, enter market specifications and prices, and compare their bucking pattern with the highest-value pattern found under the current SumBuck rules.
 
-- Next.js + TypeScript app structure
-- 100 original local practice logs covering the requested species, with 95 including at least one veneer-only defect
-- Prices and log-rule selection in tabs, with Doyle, Scribner, and International 1/4 supported
-- Product-specific defect model, including veneer-only defects
-- Large semi-realistic SVG stem view with species-specific bark palettes/textures, taper, sweep, irregular edges, oval end-grain, defects, click-to-cut, live feet/inches spacing, roll controls, scale, and model overlay
-- Segment table with grade/product, volume, price, value, and defect notes
-- Scoring against a model solution and a simple optimizer
-- JSON import/export area for local practice-log editing
-- Unit tests for the calculation engine
+## Features
 
-## Run
+- Bucking practice with practice and instruction stem sets
+- Log grading trainer with scorekeeping
+- Northern Hardwoods Market defaults
+- Custom one-species market entry for prices, grade names, and specifications
+- Clear-face and clear-cutting grading modes
+- Veneer, sawlog, sweep, heartwood, trim, hollow, seam, and defect handling
+- Compare-optimal view with side-by-side bucker and optimal results
+- Bucking recovery scoreboard
+- In-app user manual with searchable help
+- First-visit entry overlay
+- Static export support for GitHub Pages
+
+## Run Locally
 
 ```bash
 npm install
@@ -31,4 +35,12 @@ npm test
 npm run build
 ```
 
-The grading rules in `lib/calculations.ts` are intentionally simplified prototype rules. Veneer-only defects block veneer products while leaving sawlog clear-face grading untouched.
+## GitHub Pages
+
+The repository includes a GitHub Actions workflow at `.github/workflows/pages.yml`.
+
+After pushing to the `main` branch, enable GitHub Pages in the repository settings and choose GitHub Actions as the Pages source.
+
+## Notes
+
+SumBuck is an educational training model. Its optimizer compares bucking patterns under the currently selected species, prices, specifications, trim rules, visible defect rules, sweep rules, heart rules, and log rule.

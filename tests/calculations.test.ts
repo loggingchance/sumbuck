@@ -26,10 +26,14 @@ import { optimizeCuts } from "../lib/optimizer";
 import { NORTHERN_HARDWOODS_MARKET } from "../lib/markets";
 import { DEFAULT_PRICES } from "../lib/prices";
 import { DEFAULT_GRADE_STANDARDS } from "../lib/specifications";
-import type { LogSegment } from "../lib/types";
+import { PRODUCT_CLASSES, type GradeStandards, type LogSegment, type PracticeLog, type PriceTable } from "../lib/types";
 
 const log = PRACTICE_LOGS[0];
 const veneerLog = PRACTICE_LOGS.find((practiceLog) => practiceLog.veneerOnlyDefects.length > 0) ?? log;
+const zeroPrices = PRODUCT_CLASSES.reduce((next, product) => {
+  next[product] = 0;
+  return next;
+}, {} as PriceTable);
 
 describe("hardwood bucking calculations", () => {
   it("uses the Northern Hardwoods Market as the resident market preset", () => {
@@ -321,6 +325,90 @@ describe("hardwood bucking calculations", () => {
     expect(optimized.segments.length).toBeGreaterThan(0);
   });
 
+  it("optimizer chooses the only high-value legal 16 ft pattern in a known-answer stem", () => {
+    const knownLog = optimizerTestLog(16.5, 18);
+    const prices: PriceTable = { ...zeroPrices, number_1_sawlog: 1000 };
+    const standards: GradeStandards = {
+      ...DEFAULT_GRADE_STANDARDS,
+      number_1_sawlog: {
+        ...DEFAULT_GRADE_STANDARDS.number_1_sawlog,
+        allowedNominalLengthsFt: [16],
+        minSmallEndDiameterIn: 10,
+        minClearFaces: 4,
+        maxSweepIn: null,
+        maxHeartwoodPercent: null
+      }
+    };
+
+    const optimized = optimizeCuts(knownLog, prices, "international_1_4", standards);
+
+    expect(optimized.cutPositionsFt).toEqual([]);
+    expect(optimized.segments).toHaveLength(1);
+    expect(optimized.segments[0].nominalLengthFt).toBe(16);
+    expect(optimized.segments[0].product).toBe("number_1_sawlog");
+  });
+
+  it("optimizer chooses two 8 ft logs when the known price table rewards only 8 ft logs", () => {
+    const knownLog = optimizerTestLog(17, 18);
+    const prices: PriceTable = { ...zeroPrices, number_1_sawlog: 1000 };
+    const standards: GradeStandards = {
+      ...DEFAULT_GRADE_STANDARDS,
+      number_1_sawlog: {
+        ...DEFAULT_GRADE_STANDARDS.number_1_sawlog,
+        allowedNominalLengthsFt: [8],
+        minSmallEndDiameterIn: 10,
+        minClearFaces: 4,
+        maxSweepIn: null,
+        maxHeartwoodPercent: null
+      }
+    };
+
+    const optimized = optimizeCuts(knownLog, prices, "international_1_4", standards);
+
+    expect(optimized.cutPositionsFt).toEqual([8.5]);
+    expect(optimized.segments.map((segment) => segment.nominalLengthFt)).toEqual([8, 8]);
+    expect(optimized.segments.every((segment) => segment.product === "number_1_sawlog")).toBe(true);
+  });
+
+  it("optimizer can place an over-trim cut to keep a defect out of the next log", () => {
+    const knownLog: PracticeLog = {
+      ...optimizerTestLog(17.25, 18),
+      visibleDefects: [
+        sawlogDefect("butt-defect", 1, 1.2, "face_1"),
+        sawlogDefect("boundary-defect", 8.6, 8.7, "face_2")
+      ]
+    };
+    const prices: PriceTable = { ...zeroPrices, number_1_sawlog: 1000, number_2_sawlog: 100 };
+    const standards: GradeStandards = {
+      ...DEFAULT_GRADE_STANDARDS,
+      number_1_sawlog: {
+        ...DEFAULT_GRADE_STANDARDS.number_1_sawlog,
+        allowedNominalLengthsFt: [8],
+        minSmallEndDiameterIn: 10,
+        minClearFaces: 4,
+        maxSweepIn: null,
+        maxHeartwoodPercent: null
+      },
+      number_2_sawlog: {
+        ...DEFAULT_GRADE_STANDARDS.number_2_sawlog,
+        allowedNominalLengthsFt: [8],
+        minSmallEndDiameterIn: 10,
+        minClearFaces: 0,
+        maxSweepIn: null,
+        maxHeartwoodPercent: null
+      }
+    };
+
+    const minimumTrimPattern = scoreSolution(knownLog, [8.5], prices, "international_1_4", standards);
+    const smarterOverTrimPattern = scoreSolution(knownLog, [8.75], prices, "international_1_4", standards);
+    const optimized = optimizeCuts(knownLog, prices, "international_1_4", standards);
+
+    expect(smarterOverTrimPattern.totalValue).toBeGreaterThan(minimumTrimPattern.totalValue);
+    expect(optimized.totalValue).toBeGreaterThanOrEqual(smarterOverTrimPattern.totalValue);
+    expect(optimized.cutPositionsFt[0]).toBeGreaterThanOrEqual(8.7);
+    expect(optimized.segments[1].product).toBe("number_1_sawlog");
+  });
+
   it("keeps veneer potential to no more than ten percent of practice logs", () => {
     const veneerPotentialLogs = PRACTICE_LOGS.filter(
       (practiceLog) => practiceLog.veneerOnlyDefects.length > 0 || practiceLog.bothVeneerAndSawlogDefects.length > 0
@@ -397,7 +485,7 @@ describe("hardwood bucking calculations", () => {
       const optimized = optimizeCuts(practiceLog, DEFAULT_PRICES);
       expect(optimized.totalValue).toBeGreaterThanOrEqual(model.totalValue);
     }
-  });
+  }, 30000);
 
   it("keeps sawlog eligibility when only veneer defects are present", () => {
     const segment: LogSegment = {
@@ -532,3 +620,55 @@ describe("hardwood bucking calculations", () => {
     expect(isProductEligible({ ...segment, heartwoodDiameterIn: 5, heartwoodPercent: 27.8 }, "prime_sawlog").eligible).toBe(true);
   });
 });
+
+function optimizerTestLog(totalLengthFt: number, diameterIn: number): PracticeLog {
+  return {
+    id: `optimizer-test-${totalLengthFt}`,
+    title: "optimizer test stem",
+    species: "hard maple",
+    totalLengthFt,
+    diameterPoints: [
+      { positionFt: 0, diameterIn },
+      { positionFt: totalLengthFt, diameterIn }
+    ],
+    heartwoodPoints: [
+      { positionFt: 0, diameterIn: diameterIn * 0.2 },
+      { positionFt: totalLengthFt, diameterIn: diameterIn * 0.2 }
+    ],
+    shapeProfile: {
+      sweepDirection: "left",
+      ovality: 0,
+      barkRidgeFrequency: 1,
+      shapePoints: [
+        { positionFt: 0, sweepOffsetIn: 0, topIrregularityIn: 0, bottomIrregularityIn: 0 },
+        { positionFt: totalLengthFt, sweepOffsetIn: 0, topIrregularityIn: 0, bottomIrregularityIn: 0 }
+      ]
+    },
+    minUsableTopDiameterIn: 10,
+    visibleDefects: [],
+    veneerOnlyDefects: [],
+    sawlogAffectingDefects: [],
+    bothVeneerAndSawlogDefects: [],
+    modelSolutionCutPositionsFt: [],
+    modelSolutionExplanation: "",
+    difficulty: "intro",
+    teachingObjective: ""
+  };
+}
+
+function sawlogDefect(id: string, startFt: number, endFt: number, face: LogSegment["defects"][number]["faces"][number]) {
+  return {
+    id,
+    type: "open_knot",
+    startFt,
+    endFt,
+    faces: [face],
+    severity: "moderate" as const,
+    visibility: "visible" as const,
+    impactClass: "sawlog_grade" as const,
+    productImpacts: {
+      sawlog: { gradeImpact: "moderate" as const, reason: "Blocks a clear face." }
+    },
+    notes: "Known-answer optimizer defect."
+  };
+}

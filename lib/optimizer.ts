@@ -4,6 +4,7 @@ import {
   SAWLOG_TRIM_ALLOWANCE_FT,
   TRIM_FT,
   allDefects,
+  calculateNominalLengthFt,
   calculateSegmentSweep,
   interpolateDiameter,
   interpolateHeartwoodDiameter,
@@ -28,6 +29,9 @@ export function optimizeCuts(
   const legalLengths = Array.from(
     new Set(Object.values(standards).flatMap((standard) => standard.allowedNominalLengthsFt))
   ).sort((a, b) => a - b);
+  const defectBoundaries = Array.from(
+    new Set(allDefects(log).flatMap((defect) => [defect.startFt, defect.endFt]).map(roundCut))
+  ).sort((a, b) => a - b);
 
   function bestFrom(startFt: number, allowanceUsed: boolean): { cuts: number[]; totalValue: number } {
     const key = `${roundCut(startFt)}-${allowanceUsed ? "used" : "open"}`;
@@ -39,8 +43,7 @@ export function optimizeCuts(
       totalValue: scoreCandidateSegment(log, startFt, log.totalLengthFt, prices, logRule, standards, false)
     };
 
-    for (const nominalLength of legalLengths) {
-      const endFt = roundCut(startFt + nominalLength + TRIM_FT);
+    for (const endFt of candidateEndPositions(startFt, legalLengths, log.totalLengthFt, TRIM_FT, TRIM_FT + 1, defectBoundaries)) {
       if (endFt > log.totalLengthFt + 0.01) continue;
 
       const segmentValue = scoreCandidateSegment(log, startFt, endFt, prices, logRule, standards, false);
@@ -52,9 +55,17 @@ export function optimizeCuts(
           totalValue
         };
       }
+    }
 
-      if (!allowanceUsed) {
-        const allowanceEndFt = roundCut(startFt + nominalLength + TRIM_FT - SAWLOG_TRIM_ALLOWANCE_FT);
+    if (!allowanceUsed) {
+      for (const allowanceEndFt of candidateEndPositions(
+        startFt,
+        legalLengths,
+        log.totalLengthFt,
+        TRIM_FT - SAWLOG_TRIM_ALLOWANCE_FT,
+        TRIM_FT,
+        defectBoundaries
+      )) {
         if (allowanceEndFt > log.totalLengthFt + 0.01) continue;
         const allowanceSegmentValue = scoreCandidateSegment(log, startFt, allowanceEndFt, prices, logRule, standards, true);
         const allowanceNext = allowanceEndFt < log.totalLengthFt ? bestFrom(allowanceEndFt, true) : { cuts: [] as number[], totalValue: 0 };
@@ -87,7 +98,7 @@ function scoreCandidateSegment(
   useSawlogTrimAllowance: boolean
 ): number {
   const rawLength = endFt - startFt;
-  const nominalLengthFt = Math.max(0, Math.floor(rawLength - TRIM_FT));
+  const nominalLengthFt = calculateNominalLengthFt(rawLength);
   const smallEndDiameterIn = interpolateDiameter(log, endFt);
   const heartwoodDiameterIn = interpolateHeartwoodDiameter(log, endFt);
 
@@ -121,4 +132,38 @@ function scoreCandidateSegment(
 
 function roundCut(value: number): number {
   return Math.round(value * 48) / 48;
+}
+
+function candidateEndPositions(
+  startFt: number,
+  legalLengths: number[],
+  totalLengthFt: number,
+  minTrimFt: number,
+  maxTrimFt: number,
+  defectBoundaries: number[]
+): number[] {
+  const positions = new Set<number>();
+  for (const nominalLength of legalLengths) {
+    const minEnd = startFt + nominalLength + minTrimFt;
+    const maxEnd = startFt + nominalLength + maxTrimFt;
+    addCandidate(positions, minEnd, startFt, totalLengthFt);
+    addCandidate(positions, maxEnd, startFt, totalLengthFt);
+
+    for (const boundary of defectBoundaries) {
+      for (const offset of [-1 / 48, 0, 1 / 48]) {
+        const endFt = boundary + offset;
+        if (endFt >= minEnd - 0.00001 && endFt <= maxEnd + 0.00001) {
+          addCandidate(positions, endFt, startFt, totalLengthFt);
+        }
+      }
+    }
+  }
+  if (totalLengthFt > startFt + 0.00001) positions.add(totalLengthFt);
+  return [...positions].sort((a, b) => a - b);
+}
+
+function addCandidate(positions: Set<number>, endFt: number, startFt: number, totalLengthFt: number): void {
+  const rounded = roundCut(endFt);
+  if (rounded <= startFt + 0.00001 || rounded >= totalLengthFt - 0.00001) return;
+  positions.add(rounded);
 }

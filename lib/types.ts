@@ -17,7 +17,6 @@ export type Species = (typeof SPECIES)[number];
 export const PRODUCT_CLASSES = [
   "slicer_veneer",
   "rotary_veneer",
-  "prime_plus_sawlog",
   "prime_sawlog",
   "select_sawlog",
   "number_1_sawlog",
@@ -31,7 +30,6 @@ export type ProductClass = (typeof PRODUCT_CLASSES)[number];
 export const PRODUCT_LABELS: Record<ProductClass, string> = {
   slicer_veneer: "slicer veneer",
   rotary_veneer: "rotary veneer",
-  prime_plus_sawlog: "prime+ sawlog",
   prime_sawlog: "prime sawlog",
   select_sawlog: "select sawlog",
   number_1_sawlog: "#1 sawlog",

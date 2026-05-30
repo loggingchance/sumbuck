@@ -33,19 +33,6 @@ export const DEFAULT_GRADE_STANDARDS: GradeStandards = {
     maxSweepIn: 1,
     notes: "Training rule: veneer is 8, 9, or 10 ft nominal, minimum 14 in small end, with 6 in trim not counted in board footage."
   },
-  prime_plus_sawlog: {
-    product: "prime_plus_sawlog",
-    minSmallEndDiameterIn: 16,
-    allowedNominalLengthsFt: SAWLOG_LENGTHS,
-    ...CLEAR_FACE_DEFAULTS,
-    minClearFaces: 4,
-    minClearCuttingLengthFt: 7,
-    maxClearCuttings: 2,
-    minClearCuttingProportion: 5 / 6,
-    maxHeartwoodPercent: 40,
-    maxSweepIn: 1.5,
-    notes: "Baillie sheet: 16 in+, 8 ft 8 in+ one defect; or 15 in, 10 ft+ one defect. 40% heart max. No sawn-off limbs."
-  },
   prime_sawlog: {
     product: "prime_sawlog",
     minSmallEndDiameterIn: 14,

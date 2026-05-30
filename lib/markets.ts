@@ -51,7 +51,6 @@ function prices(
   return {
     slicer_veneer: slicer,
     rotary_veneer: rotary,
-    prime_plus_sawlog: 0,
     prime_sawlog: prime,
     select_sawlog: select,
     number_1_sawlog: number1,
@@ -85,12 +84,6 @@ function standardsFor(species: Species): GradeStandards {
     maxHeartwoodPercent: veneerHeartLimit,
     maxSweepIn: 1,
     notes: `Northern Hardwoods Market: 12 in minimum small end, 8 ft nominal minimum with 6 in trim. One small defect allowed if otherwise suitable. Good form and centered heart preferred. No severe sweep, shake, rot, metal, fire damage, or excessive stain. Buyer confirmation required for veneer. ${speciesNote}`
-  };
-
-  standards.prime_plus_sawlog = {
-    ...standards.prime_plus_sawlog,
-    allowedNominalLengthsFt: [],
-    notes: "Northern Hardwoods Market does not include a separate prime+ grade. Its price is set to zero and it is not used by the optimizer."
   };
 
   standards.prime_sawlog = {

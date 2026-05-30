@@ -1,7 +1,9 @@
-node_modules
-.next
-out
-.vercel
-.env
-.env.local
-.DS_Store
+node_modules/
+.next/
+out/
+tsconfig.tsbuildinfo
+*.zip
+
+# Local extraction / research folders
+tmp_hw_buck_3_5/
+pdf_images/

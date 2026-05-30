@@ -8,6 +8,7 @@ import { scoreAttempt } from "@/lib/feedback";
 import { MARKET_MODE_STORAGE_KEY, NORTHERN_HARDWOODS_MARKET } from "@/lib/markets";
 import { LOG_LIBRARY_STORAGE_KEY, PRICE_STORAGE_KEY } from "@/lib/prices";
 import { GRADE_STANDARD_STORAGE_KEY } from "@/lib/specifications";
+import { UserManual } from "@/components/UserManual";
 import {
   PRODUCT_CLASSES,
   PRODUCT_LABELS,
@@ -44,13 +45,14 @@ type GraphicSegment = Pick<
   "id" | "startFt" | "endFt" | "nominalLengthFt" | "smallEndDiameterIn" | "heartwoodDiameterIn" | "heartwoodPercent" | "product" | "volumeMbf" | "value"
 >;
 type SpeciesGradeStandards = Record<Species, GradeStandards>;
-type SideTab = "buck" | "grade" | "specifications";
+type SideTab = "buck" | "grade" | "specifications" | "manual";
 type MarketMode = "northern" | "custom";
 type ProductLabels = Record<ProductClass, string>;
 type CustomGradeLabels = Record<Species, Partial<ProductLabels>>;
 const MARKET_NAME = NORTHERN_HARDWOODS_MARKET.name;
 const CUSTOM_GRADE_LABEL_STORAGE_KEY = "sumbuck-custom-grade-labels-v1";
 const SAVED_CUSTOM_MARKET_STORAGE_KEY = "sumbuck-saved-custom-species-market-v1";
+const INTRO_STORAGE_KEY = "sumbuck-seen-intro-v1";
 
 interface GradingExercise {
   id: string;
@@ -72,6 +74,16 @@ interface SavedCustomMarket {
   standards: GradeStandards;
   gradeLabels: Partial<ProductLabels>;
   savedAt: string;
+}
+
+interface BuckingScore {
+  id: string;
+  stemTitle: string;
+  logSet: "practice" | "instruction";
+  species: Species;
+  userValue: number;
+  optimalValue: number;
+  recoveryPercent: number;
 }
 
 function applySpeciesProfile(log: PracticeLog, species: Species): PracticeLog {
@@ -123,6 +135,10 @@ export function TrainerApp() {
   const [customMarketName, setCustomMarketName] = useState("Custom species market");
   const [savedCustomMarket, setSavedCustomMarket] = useState<SavedCustomMarket | null>(null);
   const [buckSelectorsOpen, setBuckSelectorsOpen] = useState(true);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
+  const [dontShowIntro, setDontShowIntro] = useState(false);
+  const [buckingScores, setBuckingScores] = useState<BuckingScore[]>([]);
   const loadedFromStorage = useRef(false);
 
   useEffect(() => {
@@ -145,6 +161,10 @@ export function TrainerApp() {
       }
     }
     loadedFromStorage.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!window.localStorage.getItem(INTRO_STORAGE_KEY)) setIntroOpen(true);
   }, []);
 
   useEffect(() => {
@@ -431,6 +451,40 @@ export function TrainerApp() {
     setResultMode(null);
   }
 
+  function submitBuckingResult(mode: "bucker" | "compare") {
+    const optimalValue = attempt.optimized?.totalValue ?? 0;
+    const recoveryPercent = optimalValue > 0 ? (attempt.user.totalValue / optimalValue) * 100 : 0;
+    setBuckingScores((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        stemTitle: log.title,
+        logSet,
+        species: selectedSpecies,
+        userValue: attempt.user.totalValue,
+        optimalValue,
+        recoveryPercent
+      }
+    ]);
+    setResultMode(mode);
+  }
+
+  function dismissIntro(remember = dontShowIntro) {
+    if (remember) window.localStorage.setItem(INTRO_STORAGE_KEY, "1");
+    setIntroOpen(false);
+  }
+
+  function startFromIntro(mode: "practice" | "instruction" | "grade") {
+    dismissIntro();
+    if (mode === "grade") {
+      setSideTab("grade");
+      return;
+    }
+    setSideTab("buck");
+    changeLogSet(mode);
+    setBuckSelectorsOpen(mode === "instruction");
+  }
+
   return (
     <main>
       <header className="topbar">
@@ -439,9 +493,145 @@ export function TrainerApp() {
           <p className="tagline"><em>World&apos;s best hardwood log bucker training app</em></p>
         </div>
         <div className="headerStats">
+          <button className="aboutButton" onClick={() => setAboutOpen(true)}>About</button>
           <a className="lumbermenLink" href="https://lumbermen.org" target="_blank" rel="noreferrer">Lumbermen OS</a>
         </div>
       </header>
+
+      {introOpen && (
+        <div className="sb-overlay" role="dialog" aria-modal="true" aria-labelledby="sbBrand">
+          <div
+            className="sb-hero"
+            aria-hidden="true"
+            style={{ backgroundImage: `url("${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/intro-hero.jpg")` }}
+          ></div>
+          <div className="sb-scrim" aria-hidden="true"></div>
+          <div className="sb-card">
+            <svg className="sb-logend" viewBox="0 0 100 100" aria-hidden="true">
+              <defs>
+                <radialGradient id="sb-bark" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#d8b87a" />
+                  <stop offset="70%" stopColor="#a8854a" />
+                  <stop offset="100%" stopColor="#5b3f22" />
+                </radialGradient>
+              </defs>
+              <circle cx="50" cy="50" r="48" fill="url(#sb-bark)" />
+              <g fill="none" stroke="#6b4f2c" strokeOpacity=".55">
+                <circle cx="50" cy="50" r="40" strokeWidth="1.4" />
+                <circle cx="50" cy="50" r="32" strokeWidth="1.2" />
+                <circle cx="50" cy="50" r="25" strokeWidth="1" />
+                <circle cx="50" cy="50" r="18" strokeWidth="1" />
+                <circle cx="50" cy="50" r="11" strokeWidth="1" />
+              </g>
+              <circle cx="50" cy="50" r="4" fill="#3a2a16" />
+            </svg>
+
+            <h1 className="sb-brand" id="sbBrand">SumBuck</h1>
+            <p className="sb-tag">World&apos;s best hardwood log bucker training app</p>
+            <p className="sb-lede">
+              Buck tree-length stems, grade the logs, and chase the <b>highest-value pattern</b> the optimizer
+              can find across eleven hardwood species and the markets you set.
+            </p>
+
+            <div className="sb-modes">
+              <button className="sb-mode sb-mode--primary" onClick={() => startFromIntro("practice")}>
+                <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 17l6-6" />
+                  <path d="M14 6l4 4" />
+                  <path d="M2 22l4-1 12-12a2.8 2.8 0 0 0-4-4L2 17z" />
+                </svg>
+                <h3>Buck a stem</h3>
+                <p>Place cuts on a full stem, then score your pattern against the optimizer.</p>
+                <span className="go">Start practice &rarr;</span>
+              </button>
+
+              <button className="sb-mode" onClick={() => startFromIntro("instruction")}>
+                <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" />
+                  <path d="M9 7h7M9 11h7" />
+                </svg>
+                <h3>Learn the optimum</h3>
+                <p>Walk through curated instruction stems built to teach a specific lesson.</p>
+                <span className="go">Open instruction logs &rarr;</span>
+              </button>
+
+              <button className="sb-mode" onClick={() => startFromIntro("grade")}>
+                <svg className="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 7l9-4 9 4-9 4-9-4z" />
+                  <path d="M3 7v7l9 4 9-4V7" />
+                </svg>
+                <h3>Grade logs</h3>
+                <p>Call the grade on pre-cut logs, from slicer veneer down to scrag, and keep score.</p>
+                <span className="go">Practice grading &rarr;</span>
+              </button>
+            </div>
+
+            <div className="sb-inside">
+              <span><i className="sb-dot"></i><b>11</b>&nbsp;valuable hardwood species</span>
+              <span><i className="sb-dot"></i>Resident <b>Northern Hardwoods</b> market</span>
+              <span><i className="sb-dot"></i>Or enter your own <b>specs &amp; prices</b> free</span>
+            </div>
+
+            <p className="sb-minor">
+              <button
+                className="sb-link"
+                onClick={() => {
+                  dismissIntro();
+                  setSideTab("manual");
+                }}
+              >
+                Read the user manual
+              </button>
+              <span aria-hidden="true">|</span>
+              <label className="sb-check">
+                <input type="checkbox" checked={dontShowIntro} onChange={(event) => setDontShowIntro(event.target.checked)} />
+                Do not show this again
+              </label>
+            </p>
+          </div>
+          <p className="sb-credit">Field photo courtesy of Paul Smith&apos;s College field day.</p>
+        </div>
+      )}
+
+      {aboutOpen && (
+        <div className="modalBackdrop" role="presentation" onClick={() => setAboutOpen(false)}>
+          <section className="aboutModal" role="dialog" aria-modal="true" aria-labelledby="about-sumbuck-title" onClick={(event) => event.stopPropagation()}>
+            <div className="aboutModalHeader">
+              <div>
+                <p className="eyebrow">About</p>
+                <h2 id="about-sumbuck-title">About SumBuck</h2>
+              </div>
+              <button aria-label="Close About SumBuck" onClick={() => setAboutOpen(false)}>Close</button>
+            </div>
+            <div className="aboutCopy">
+              <p>
+                SumBuck was created by Dr. Steven Bick of Northeast Forests LLC and The Forest Business School as part of the Lumbermen OS suite of tools.
+              </p>
+              <p>
+                SumBuck supports hardwood utilization training for people, organizations, businesses, schools, and public agencies. It gives learners a practical way to think through tree-length bucking decisions, log grades, defects, product specifications, and market values. Used with a good training presentation on scaling, defects, grading, and optimal bucking practices, SumBuck can help create an effective and memorable educational program.
+              </p>
+              <p>
+                In SumBuck, the optimal bucking pattern is the highest-value pattern found under the currently selected species, prices, grade specifications, trim rules, visible defect rules, sweep rules, heart rules, and log rule. It is a training comparison based on the active market assumptions in the app.
+              </p>
+              <p>
+                SumBuck is an educational tool. It is not intended to provide commercial optimization, financial advice, professional forestry advice, or a substitute for local log specifications, mill requirements, market knowledge, or experienced judgment. Log values, grades, defect rules, product specifications, and market opportunities vary by region, buyer, species, season, and individual stem. Users are responsible for checking all assumptions and applying their own professional judgment before making real-world harvesting, marketing, or purchasing decisions.
+              </p>
+              <p>
+                Use SumBuck at your own risk, for your own benefit, and for your own enjoyment. Share it with others.
+              </p>
+              <p>
+                SumBuck can be customized to add features, especially alternative markets, regional specifications, training examples, branded content, and organization-specific workflows. It can also be branded to match an agency, school, association, business, or other organization. Contact Steve Bick at <a href="mailto:steve@northeastforests.com">steve@northeastforests.com</a> to discuss possibilities and costs.
+              </p>
+              <p>
+                Caution: log bucking practice can be addictive. Know when to quit.
+              </p>
+              <p className="aboutQuote">
+                "You'd be a woreout sumbuck. I'll tell you that." - Cormac McCarthy, All the Pretty Horses
+              </p>
+            </div>
+          </section>
+        </div>
+      )}
 
       <section className="workspace">
         <aside className="panel sidebar">
@@ -454,6 +644,7 @@ export function TrainerApp() {
             >
               Enter Specs and Prices
             </button>
+            <button className={sideTab === "manual" ? "active" : ""} onClick={() => setSideTab("manual")}>User Manual</button>
           </div>
 
           {sideTab === "buck" && (
@@ -512,15 +703,23 @@ export function TrainerApp() {
               {logSet === "instruction" && (
                 <section className="instructionNotes">
                   <p className="eyebrow">Instruction points</p>
-                  <p className="objective">{log.teachingObjective}</p>
-                  {log.instructionalPointTags && log.instructionalPointTags.length > 0 && (
-                    <div className="instructionTags">
-                      {log.instructionalPointTags.map((tag) => (
-                        <span key={tag}>{tag}</span>
-                      ))}
-                    </div>
+                  {submitted ? (
+                    <>
+                      <p className="objective">{log.teachingObjective}</p>
+                      {log.instructionalPointTags && log.instructionalPointTags.length > 0 && (
+                        <div className="instructionTags">
+                          {log.instructionalPointTags.map((tag) => (
+                            <span key={tag}>{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                      {log.instructionalNote && <p className="instructionNote">{log.instructionalNote}</p>}
+                    </>
+                  ) : (
+                    <p className="instructionNote">
+                      First inspect all faces, make your cuts, and score the stem. The teaching point appears after your attempt.
+                    </p>
                   )}
-                  {log.instructionalNote && <p className="instructionNote">{log.instructionalNote}</p>}
                 </section>
               )}
             </div>
@@ -630,10 +829,21 @@ export function TrainerApp() {
               />
             </div>
           )}
+
+          {sideTab === "manual" && (
+            <div className="sidePanelBody">
+              <div className="marketNotice">
+                <strong>SumBuck manual</strong>
+                <span>Read the full guide, jump by section, and return to practice whenever you are ready.</span>
+              </div>
+            </div>
+          )}
         </aside>
 
         <section className="mainColumn">
-          {sideTab === "grade" && gradingExercise ? (
+          {sideTab === "manual" ? (
+            <UserManual />
+          ) : sideTab === "grade" && gradingExercise ? (
             <GradingTrainer
               exercise={gradingExercise}
               exerciseIndex={gradingIndex}
@@ -669,6 +879,7 @@ export function TrainerApp() {
                   <LogContextPills log={log} ruleLabel={`${LOG_RULE_LABELS[logRule]} rule`} />
                   <button className="primary nextLogButton" onClick={nextLog}>Next</button>
                 </div>
+                <p className="screenObjective">Maximize total stem value.</p>
               </div>
             </div>
             <div className="rollControls">
@@ -812,14 +1023,16 @@ export function TrainerApp() {
                 Clear cuts
               </button>
               {submitted && <button onClick={() => setResultMode(null)}>Edit cuts</button>}
-              <button className="primary" onClick={() => setResultMode("bucker")}>
+              <button className="primary" onClick={() => submitBuckingResult("bucker")}>
                 Score bucker
               </button>
-              <button className="primary" onClick={() => setResultMode("compare")}>
+              <button className="primary" onClick={() => submitBuckingResult("compare")}>
                 Compare optimal
               </button>
             </div>
           </div>
+
+          <BuckingScoreboard scores={buckingScores} onReset={() => setBuckingScores([])} />
 
           {submitted && !showComparison && (
             <SegmentTable
@@ -862,6 +1075,10 @@ export function TrainerApp() {
                   <p>Difference from optimal</p>
                 </div>
                 <div className="feedbackList">
+                  <article className="feedback info">
+                    <strong>Why this optimal pattern is higher</strong>
+                    <p>{optimalPatternSummary(attempt.user.segments, attempt.optimized?.segments ?? [], productLabels)}</p>
+                  </article>
                   {attempt.feedback.map((item) => (
                     <article key={item.title} className={`feedback ${item.tone}`}>
                       <strong>{item.title}</strong>
@@ -960,6 +1177,52 @@ function LogContextPills({ log, lengthLabel, ruleLabel }: { log: PracticeLog; le
       <span>{lengthLabel ?? `${log.totalLengthFt.toFixed(1)} ft`}</span>
       {ruleLabel && <span>{ruleLabel}</span>}
     </div>
+  );
+}
+
+function BuckingScoreboard({ scores, onReset }: { scores: BuckingScore[]; onReset: () => void }) {
+  if (scores.length === 0) return null;
+  const totalUserValue = scores.reduce((total, score) => total + score.userValue, 0);
+  const totalOptimalValue = scores.reduce((total, score) => total + score.optimalValue, 0);
+  const overallRecovery = totalOptimalValue > 0 ? (totalUserValue / totalOptimalValue) * 100 : 0;
+  const lastTen = scores.slice(-10);
+  const lastTenUserValue = lastTen.reduce((total, score) => total + score.userValue, 0);
+  const lastTenOptimalValue = lastTen.reduce((total, score) => total + score.optimalValue, 0);
+  const lastTenRecovery = lastTenOptimalValue > 0 ? (lastTenUserValue / lastTenOptimalValue) * 100 : 0;
+  const latest = scores[scores.length - 1];
+
+  return (
+    <section className="panel scoreboardPanel">
+      <div className="panelHeader compact">
+        <div>
+          <p className="eyebrow">Scoreboard</p>
+          <h2>Bucking recovery</h2>
+        </div>
+        <button onClick={onReset}>Reset</button>
+      </div>
+      <div className="scoreboardGrid">
+        <div>
+          <span>overall recovery</span>
+          <strong>{overallRecovery.toFixed(1)}%</strong>
+          <p>{scores.length} scored {scores.length === 1 ? "stem" : "stems"}</p>
+        </div>
+        <div>
+          <span>last 10</span>
+          <strong>{lastTenRecovery.toFixed(1)}%</strong>
+          <p>{lastTen.length} recent {lastTen.length === 1 ? "stem" : "stems"}</p>
+        </div>
+        <div>
+          <span>latest</span>
+          <strong>{latest.recoveryPercent.toFixed(1)}%</strong>
+          <p>{latest.species} | {LOG_SET_LABELS[latest.logSet]} stem</p>
+        </div>
+        <div>
+          <span>total value recovered</span>
+          <strong>${totalUserValue.toFixed(2)}</strong>
+          <p>of ${totalOptimalValue.toFixed(2)} possible</p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -2272,6 +2535,33 @@ function CompactSegmentTable({
       </table>
     </div>
   );
+}
+
+function optimalPatternSummary(userSegments: SegmentScore[], optimalSegments: SegmentScore[], productLabels: ProductLabels) {
+  if (optimalSegments.length === 0) return "No optimal comparison is available for this stem under the current settings.";
+  const userValue = userSegments.reduce((total, segment) => total + segment.value, 0);
+  const optimalValue = optimalSegments.reduce((total, segment) => total + segment.value, 0);
+  const difference = optimalValue - userValue;
+  if (difference <= 0.005) {
+    return "Your pattern matches the highest-value pattern SumBuck found under the current specs, prices, defects, sweep, trim, and log rule.";
+  }
+
+  const userPattern = summarizePattern(userSegments, productLabels);
+  const optimalPattern = summarizePattern(optimalSegments, productLabels);
+  return `The optimal pattern recovers $${difference.toFixed(2)} more by changing the log mix: your pattern is ${userPattern}, while the optimal pattern is ${optimalPattern}. Check the comparison tables for the specific length, diameter, grade, and MBF differences.`;
+}
+
+function summarizePattern(segments: SegmentScore[], productLabels: ProductLabels) {
+  const lengths = segments.map((segment) => `${segment.nominalLengthFt}'`).join(", ");
+  const products = segments.reduce((counts, segment) => {
+    const label = productLabels[segment.product];
+    counts[label] = (counts[label] ?? 0) + 1;
+    return counts;
+  }, {} as Record<string, number>);
+  const productMix = Object.entries(products)
+    .map(([label, count]) => `${count} ${label}`)
+    .join(", ");
+  return `${segments.length} logs (${lengths}) producing ${productMix}`;
 }
 
 function graphicSegmentsFor(log: PracticeLog, cutPositionsFt: number[], scoredSegments: SegmentScore[]): GraphicSegment[] {
