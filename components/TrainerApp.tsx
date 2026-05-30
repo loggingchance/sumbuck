@@ -52,7 +52,7 @@ type CustomGradeLabels = Record<Species, Partial<ProductLabels>>;
 const MARKET_NAME = NORTHERN_HARDWOODS_MARKET.name;
 const CUSTOM_GRADE_LABEL_STORAGE_KEY = "sumbuck-custom-grade-labels-v1";
 const SAVED_CUSTOM_MARKET_STORAGE_KEY = "sumbuck-saved-custom-species-market-v1";
-const INTRO_STORAGE_KEY = "sumbuck-seen-intro-v1";
+const INTRO_STORAGE_KEY = "sumbuck-seen-intro-v2";
 
 interface GradingExercise {
   id: string;
@@ -503,7 +503,7 @@ export function TrainerApp() {
           <div
             className="sb-hero"
             aria-hidden="true"
-            style={{ backgroundImage: `url("${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/intro-hero.jpg")` }}
+            style={{ backgroundImage: `url("/intro-hero-v2.jpg")` }}
           ></div>
           <div className="sb-scrim" aria-hidden="true"></div>
           <div className="sb-card">
@@ -569,7 +569,11 @@ export function TrainerApp() {
             <div className="sb-inside">
               <span><i className="sb-dot"></i><b>11</b>&nbsp;valuable hardwood species</span>
               <span><i className="sb-dot"></i>Resident <b>Northern Hardwoods</b> market</span>
-              <span><i className="sb-dot"></i>Or enter your own <b>specs &amp; prices</b> free</span>
+              <span><i className="sb-dot"></i>Or enter your own <b>specs &amp; prices</b> &mdash; free</span>
+            </div>
+
+            <div className="sb-enterRow">
+              <button className="sb-enter" onClick={() => startFromIntro("practice")}>Enter SumBuck &rarr;</button>
             </div>
 
             <p className="sb-minor">
@@ -589,7 +593,7 @@ export function TrainerApp() {
               </label>
             </p>
           </div>
-          <p className="sb-credit">Field photo courtesy of Paul Smith&apos;s College field day.</p>
+          <p className="sb-credit">Field bucking &mdash; Paul Smith&apos;s College woodland training</p>
         </div>
       )}
 

@@ -221,7 +221,7 @@ main {
   inset: 0;
   z-index: -2;
   background-size: cover;
-  background-position: center 38%;
+  background-position: center top;
 }
 
 .sb-scrim {
@@ -230,8 +230,8 @@ main {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(120% 80% at 50% 0%, rgba(58, 82, 54, 0.55) 0%, rgba(31, 42, 22, 0.86) 48%, rgba(20, 27, 15, 0.96) 100%),
-    linear-gradient(180deg, rgba(20, 27, 15, 0.55) 0%, rgba(20, 27, 15, 0.78) 100%);
+    linear-gradient(90deg, rgba(20, 27, 15, 0.55) 0%, rgba(20, 27, 15, 0.22) 22%, rgba(20, 27, 15, 0.05) 45%, rgba(20, 27, 15, 0) 100%),
+    linear-gradient(180deg, rgba(20, 27, 15, 0.14) 0%, rgba(20, 27, 15, 0.26) 30%, rgba(20, 27, 15, 0.56) 60%, rgba(20, 27, 15, 0.9) 100%);
 }
 
 .sb-scrim::after {
@@ -251,9 +251,9 @@ main {
 
 .sb-logend {
   display: block;
-  width: 92px;
-  height: 92px;
-  margin: 0 auto 14px;
+  width: 74px;
+  height: 74px;
+  margin: 0 auto 12px;
   filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.55));
   animation: sb-spin 40s linear infinite;
 }
@@ -377,6 +377,36 @@ main {
   height: 6px;
   border-radius: 50%;
   background: var(--gold);
+}
+
+.sb-enterRow {
+  display: flex;
+  justify-content: center;
+  margin: 26px 0 0;
+}
+
+.sb-enter {
+  padding: 15px 54px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+  color: var(--green-900);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  transition: transform 0.14s, box-shadow 0.14s, filter 0.14s;
+}
+
+.sb-enter:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.sb-enter:active {
+  transform: translateY(0);
 }
 
 .sb-minor {
