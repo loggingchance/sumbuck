@@ -9,6 +9,7 @@ import { MARKET_MODE_STORAGE_KEY, NORTHERN_HARDWOODS_MARKET } from "@/lib/market
 import { LOG_LIBRARY_STORAGE_KEY, PRICE_STORAGE_KEY } from "@/lib/prices";
 import { GRADE_STANDARD_STORAGE_KEY } from "@/lib/specifications";
 import { UserManual } from "@/components/UserManual";
+import { browserUsage } from "@/lib/usage";
 import {
   PRODUCT_CLASSES,
   PRODUCT_LABELS,
@@ -136,10 +137,17 @@ export function TrainerApp() {
   const [savedCustomMarket, setSavedCustomMarket] = useState<SavedCustomMarket | null>(null);
   const [buckSelectorsOpen, setBuckSelectorsOpen] = useState(true);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [usageOptedOut, setUsageOptedOut] = useState(false);
   const [introOpen, setIntroOpen] = useState(false);
   const [dontShowIntro, setDontShowIntro] = useState(false);
   const [buckingScores, setBuckingScores] = useState<BuckingScore[]>([]);
   const loadedFromStorage = useRef(false);
+
+  useEffect(() => {
+    const usage = browserUsage();
+    usage?.track("app_opened");
+    setUsageOptedOut(usage?.isOptedOut() ?? false);
+  }, []);
 
   useEffect(() => {
     const storedPrices = window.localStorage.getItem(PRICE_STORAGE_KEY);
@@ -358,6 +366,7 @@ export function TrainerApp() {
   }
 
   function addCut(positionFt = Math.round(log.totalLengthFt / 2)) {
+    browserUsage()?.track("bucking_used");
     setCuts((current) => [
       ...current,
       { id: crypto.randomUUID(), positionFt: clamp(positionFt, 1, log.totalLengthFt - 1) }
@@ -608,6 +617,18 @@ export function TrainerApp() {
               <button aria-label="Close About SumBuck" onClick={() => setAboutOpen(false)}>Close</button>
             </div>
             <div className="aboutCopy">
+              <p>
+                SumBuck counts aggregate app opens and first use of each trainer to understand educational use.
+                No individual learner records, scores, or entered prices are collected. Google processes the
+                counter requests. Privacy signals (DNT/GPC) are honored.
+              </p>
+              <button disabled={usageOptedOut} onClick={() => {
+                browserUsage()?.optOut();
+                setUsageOptedOut(true);
+              }}>
+                {usageOptedOut ? "Activity counting off for this visit" : "Turn off activity counting for this visit"}
+              </button>
+              <p>Opting out stops future counts until the page is reloaded; your exercise stays in place.</p>
               <p>
                 SumBuck was created by Dr. Steven Bick of Northeast Forests LLC and The Forest Business School as part of the Lumbermen OS suite of tools.
               </p>
@@ -863,6 +884,7 @@ export function TrainerApp() {
               productLabels={productLabels}
               onSelectGrade={(grade) => {
                 setGradingSelection(grade);
+                browserUsage()?.track("grading_used");
                 setGradingSubmitted(false);
               }}
               onSubmit={submitGradingAnswer}

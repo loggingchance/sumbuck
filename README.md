@@ -43,4 +43,6 @@ After pushing to the `main` branch, enable GitHub Pages in the repository settin
 
 ## Notes
 
+Optional aggregate activity counting and private Google Sheet setup: [USAGE.md](USAGE.md).
+
 SumBuck is an educational training model. Its optimizer compares bucking patterns under the currently selected species, prices, specifications, trim rules, visible defect rules, sweep rules, heart rules, and log rule.
