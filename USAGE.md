@@ -81,7 +81,8 @@ The tiny synchronous counter guard also catches unsupported transport APIs.
 
 Reporting timezone: **America/Denver**, date assigned by the server. One row per
 day/event/campaign in each destination (at most six new rows/day). Script-level
-lock waits at most one second; all writes flush before releasing it. Storage is
+lock waits at most ten seconds; all writes flush before releasing it. The app never
+waits for this lock, and client timeouts do not trigger a resend. Storage is
 capped at 25,000 rows including the header, and each daily event/campaign count
 saturates at 10,000. Reaching a cap stops affected increments, never the trainer.
 The Daily count approaching 10,000 or row count approaching 25,000 signals saturation.
