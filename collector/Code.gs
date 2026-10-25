@@ -27,7 +27,7 @@ function doPost(e) {
   const id = props.getProperty(payload.mode === 'qa' ? 'QA_SHEET_ID' : 'PRODUCTION_SHEET_ID');
   if (!id) return ack();
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(1000)) return ack();
+  if (!lock.tryLock(10000)) return ack();
   try {
     const sheet = SpreadsheetApp.openById(id).getSheetByName('Daily');
     const day = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
